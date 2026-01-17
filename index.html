@@ -8,33 +8,41 @@
 <style>
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  font-family: system-ui, Arial, sans-serif;
   background: #0f172a;
   color: #e5e7eb;
 }
+
 header {
+  padding: 14px;
   text-align: center;
-  padding: 12px;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: bold;
 }
+
 .tabs, .filters {
   display: flex;
   gap: 6px;
   padding: 8px;
 }
+
 .tabs button, .filters button {
   flex: 1;
-  background: #1e293b;
-  border: none;
-  color: white;
   padding: 8px;
+  border: none;
   border-radius: 8px;
+  background: #1e293b;
+  color: white;
 }
-.tabs button.active, .filters button.active {
+
+.tabs button.active,
+.filters button.active {
   background: #2563eb;
 }
-.section { padding: 10px; }
+
+.section {
+  padding: 10px;
+}
 
 .card {
   background: #020617;
@@ -45,27 +53,30 @@ header {
   justify-content: space-between;
   align-items: center;
 }
+
 .left {
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 10px;
 }
+
 .dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
 }
-.active { background:#22c55e }
+
+.good { background:#22c55e }
 .warning { background:#facc15 }
 .danger { background:#ef4444 }
 .excused { background:#60a5fa }
-.good { background:#22c55e }
 
 .small {
   font-size: 12px;
   color: #94a3b8;
 }
-button {
+
+button.action {
   background: #334155;
   border: none;
   color: white;
@@ -80,27 +91,26 @@ button {
 <header>Clan Manager</header>
 
 <div class="tabs">
-  <button class="active" onclick="showTab('players', this)">Spieler</button>
-  <button onclick="showTab('war', this)">Clankrieg</button>
-  <button onclick="showTab('river', this)">Clanreise</button>
-  <button onclick="showTab('leaderboard', this)">Ranking</button>
+  <button class="active" onclick="openTab('players', this)">Spieler</button>
+  <button onclick="openTab('war', this)">Clankrieg</button>
+  <button onclick="openTab('river', this)">Clanreise</button>
+  <button onclick="openTab('leaderboard', this)">Ranking</button>
 </div>
 
-<div class="filters" id="playerFilters">
+<div class="filters" id="filters">
   <button class="active" onclick="setFilter('all', this)">Alle</button>
-  <button onclick="setFilter('zero', this)">⚔️ 0 Kämpfe</button>
-  <button onclick="setFilter('danger', this)">🔴 Inaktiv</button>
-  <button onclick="setFilter('warning', this)">🟡 Warnung</button>
-  <button onclick="setFilter('excused', this)">🔵 Entschuldigt</button>
+  <button onclick="setFilter('zero', this)">0 Kämpfe</button>
+  <button onclick="setFilter('danger', this)">Inaktiv</button>
+  <button onclick="setFilter('excused', this)">Entschuldigt</button>
 </div>
 
 <div id="players" class="section"></div>
-<div id="war" class="section" style="display:none;"></div>
-<div id="river" class="section" style="display:none;"></div>
-<div id="leaderboard" class="section" style="display:none;"></div>
+<div id="war" class="section" style="display:none"></div>
+<div id="river" class="section" style="display:none"></div>
+<div id="leaderboard" class="section" style="display:none"></div>
 
 <script>
-/* 🔧 BACKEND-URL HIER EINTRAGEN */
+/* 🔴 HIER NUR DAS ÄNDERN WENN NÖTIG */
 const BACKEND = "https://back-end-qyst.onrender.com";
 
 let players = [];
@@ -109,67 +119,66 @@ let river = [];
 let leaderboard = [];
 let currentFilter = "all";
 
-/* ---------------- SAFE FETCH ---------------- */
-async function safeFetch(url){
+/* ---------- HELPER ---------- */
+async function api(path) {
   try {
-    const r = await fetch(url);
-    if(!r.ok) return [];
+    const r = await fetch(BACKEND + path);
+    if (!r.ok) return [];
     return await r.json();
   } catch {
     return [];
   }
 }
 
-/* ---------------- LOAD ---------------- */
-async function loadAll(){
-  players = await safeFetch(BACKEND + "/players");
-  war = await safeFetch(BACKEND + "/war");
-  river = await safeFetch(BACKEND + "/river");
-  leaderboard = await safeFetch(BACKEND + "/leaderboard");
+/* ---------- LOAD ---------- */
+async function loadAll() {
+  players = await api("/players");
+  war = await api("/war");
+  river = await api("/river");
+  leaderboard = await api("/leaderboard");
 
-  renderPlayers();
-  renderWar();
-  renderRiver();
-  renderLeaderboard();
+  drawPlayers();
+  drawWar();
+  drawRiver();
+  drawLeaderboard();
 }
 
-/* ---------------- TABS ---------------- */
-function showTab(tab, btn){
-  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+/* ---------- TABS ---------- */
+function openTab(id, btn) {
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
 
-  ["players","war","river","leaderboard"].forEach(t=>{
-    document.getElementById(t).style.display = t === tab ? "block" : "none";
+  ["players","war","river","leaderboard"].forEach(t => {
+    document.getElementById(t).style.display = (t === id) ? "block" : "none";
   });
 
-  document.getElementById("playerFilters").style.display =
-    tab === "players" ? "flex" : "none";
+  document.getElementById("filters").style.display =
+    id === "players" ? "flex" : "none";
 }
 
-/* ---------------- FILTER ---------------- */
-function setFilter(type, btn){
-  currentFilter = type;
-  document.querySelectorAll(".filters button").forEach(b=>b.classList.remove("active"));
+/* ---------- FILTER ---------- */
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
-  renderPlayers();
+  drawPlayers();
 }
 
-/* ---------------- PLAYERS ---------------- */
-function renderPlayers(){
-  const div = document.getElementById("players");
-  div.innerHTML = "";
+/* ---------- PLAYERS ---------- */
+function drawPlayers() {
+  const el = document.getElementById("players");
+  el.innerHTML = "";
 
-  players.filter(p=>{
-    if(currentFilter === "all") return true;
-    if(currentFilter === "danger") return p.status === "danger";
-    if(currentFilter === "warning") return p.status === "warning";
-    if(currentFilter === "excused") return p.status === "excused";
-    if(currentFilter === "zero"){
+  players.filter(p => {
+    if (currentFilter === "all") return true;
+    if (currentFilter === "danger") return p.status === "danger";
+    if (currentFilter === "excused") return p.status === "excused";
+    if (currentFilter === "zero") {
       const w = war.find(x => x.tag === p.tag);
       return w && w.decksUsed === 0;
     }
-  }).forEach(p=>{
-    div.innerHTML += `
+  }).forEach(p => {
+    el.innerHTML += `
       <div class="card">
         <div class="left">
           <div class="dot ${p.status}"></div>
@@ -178,33 +187,37 @@ function renderPlayers(){
             <div class="small">${p.inactiveDays} Tage • ${p.role}</div>
           </div>
         </div>
-        <button onclick="excuse('${p.tag}')">☑️</button>
+        <button class="action" onclick="excuse('${p.tag}')">☑️</button>
       </div>
     `;
   });
+
+  if (!el.innerHTML) {
+    el.innerHTML = "<div class='small'>Keine Spieler gefunden</div>";
+  }
 }
 
-/* ---------------- EXCUSE ---------------- */
-async function excuse(tag){
+/* ---------- EXCUSE ---------- */
+async function excuse(tag) {
   const days = prompt("Wie viele Tage entschuldigen?", "3");
-  if(!days) return;
+  if (!days) return;
 
   await fetch(BACKEND + "/excuse", {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
+    headers: {"Content-Type": "application/json"},
     body: JSON.stringify({ tag, days })
   });
 
   loadAll();
 }
 
-/* ---------------- WAR ---------------- */
-function renderWar(){
-  const d = document.getElementById("war");
-  d.innerHTML = war.length ? "" : "<div class='small'>Kein aktiver Clankrieg</div>";
+/* ---------- WAR ---------- */
+function drawWar() {
+  const el = document.getElementById("war");
+  el.innerHTML = war.length ? "" : "<div class='small'>Kein aktiver Clankrieg</div>";
 
-  war.forEach(p=>{
-    d.innerHTML += `
+  war.forEach(p => {
+    el.innerHTML += `
       <div class="card">
         <div class="left">
           <div class="dot ${p.status}"></div>
@@ -218,16 +231,16 @@ function renderWar(){
   });
 }
 
-/* ---------------- RIVER ---------------- */
-function renderRiver(){
-  const d = document.getElementById("river");
-  d.innerHTML = river.length ? "" : "<div class='small'>Keine aktive Clanreise</div>";
+/* ---------- RIVER ---------- */
+function drawRiver() {
+  const el = document.getElementById("river");
+  el.innerHTML = river.length ? "" : "<div class='small'>Keine Clanreise aktiv</div>";
 
-  river.forEach(p=>{
-    d.innerHTML += `
+  river.forEach(p => {
+    el.innerHTML += `
       <div class="card">
         <div class="left">
-          <div class="dot ${p.status}"></div>
+          <div class="dot good"></div>
           <div>
             <b>${p.name}</b>
             <div class="small">${p.fame} Fame</div>
@@ -238,15 +251,15 @@ function renderRiver(){
   });
 }
 
-/* ---------------- LEADERBOARD ---------------- */
-function renderLeaderboard(){
-  const d = document.getElementById("leaderboard");
-  d.innerHTML = "";
+/* ---------- LEADERBOARD ---------- */
+function drawLeaderboard() {
+  const el = document.getElementById("leaderboard");
+  el.innerHTML = "";
 
-  leaderboard.forEach((p,i)=>{
-    d.innerHTML += `
+  leaderboard.forEach((p, i) => {
+    el.innerHTML += `
       <div class="card">
-        <b>#${i+1} ${p.name}</b>
+        <b>#${i + 1} ${p.name}</b>
         <div class="small">Score: ${p.score}</div>
       </div>
     `;
