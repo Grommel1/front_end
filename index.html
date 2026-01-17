@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>Clan Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+header {
+  text-align: center;
+  padding: 12px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.tabs, .filters {
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+}
+.tabs button, .filters button {
+  flex: 1;
+  background: #1e293b;
+  border: none;
+  color: white;
+  padding: 8px;
+  border-radius: 8px;
+}
+.tabs button.active, .filters button.active {
+  background: #2563eb;
+}
+.section { padding: 10px; }
+
+.card {
+  background: #020617;
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.left {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.active { background:#22c55e }
+.warning { background:#facc15 }
+.danger { background:#ef4444 }
+.excused { background:#60a5fa }
+.good { background:#22c55e }
+
+.small {
+  font-size: 12px;
+  color: #94a3b8;
+}
+button {
+  background: #334155;
+  border: none;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>Clan Manager</header>
+
+<div class="tabs">
+  <button class="active" onclick="showTab('players', this)">Spieler</button>
+  <button onclick="showTab('war', this)">Clankrieg</button>
+  <button onclick="showTab('river', this)">Clanreise</button>
+  <button onclick="showTab('leaderboard', this)">Ranking</button>
+</div>
+
+<div class="filters" id="playerFilters">
+  <button class="active" onclick="setFilter('all', this)">Alle</button>
+  <button onclick="setFilter('zero', this)">⚔️ 0 Kämpfe</button>
+  <button onclick="setFilter('danger', this)">🔴 Inaktiv</button>
+  <button onclick="setFilter('warning', this)">🟡 Warnung</button>
+  <button onclick="setFilter('excused', this)">🔵 Entschuldigt</button>
+</div>
+
+<div id="players" class="section"></div>
+<div id="war" class="section" style="display:none;"></div>
+<div id="river" class="section" style="display:none;"></div>
+<div id="leaderboard" class="section" style="display:none;"></div>
+
+<script>
+/* 🔧 BACKEND-URL HIER EINTRAGEN */
+const BACKEND = "https://back-end-qyst.onrender.com";
+
+let players = [];
+let war = [];
+let river = [];
+let leaderboard = [];
+let currentFilter = "all";
+
+/* ---------------- SAFE FETCH ---------------- */
+async function safeFetch(url){
+  try {
+    const r = await fetch(url);
+    if(!r.ok) return [];
+    return await r.json();
+  } catch {
+    return [];
+  }
+}
+
+/* ---------------- LOAD ---------------- */
+async function loadAll(){
+  players = await safeFetch(BACKEND + "/players");
+  war = await safeFetch(BACKEND + "/war");
+  river = await safeFetch(BACKEND + "/river");
+  leaderboard = await safeFetch(BACKEND + "/leaderboard");
+
+  renderPlayers();
+  renderWar();
+  renderRiver();
+  renderLeaderboard();
+}
+
+/* ---------------- TABS ---------------- */
+function showTab(tab, btn){
+  document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+
+  ["players","war","river","leaderboard"].forEach(t=>{
+    document.getElementById(t).style.display = t === tab ? "block" : "none";
+  });
+
+  document.getElementById("playerFilters").style.display =
+    tab === "players" ? "flex" : "none";
+}
+
+/* ---------------- FILTER ---------------- */
+function setFilter(type, btn){
+  currentFilter = type;
+  document.querySelectorAll(".filters button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  renderPlayers();
+}
+
+/* ---------------- PLAYERS ---------------- */
+function renderPlayers(){
+  const div = document.getElementById("players");
+  div.innerHTML = "";
+
+  players.filter(p=>{
+    if(currentFilter === "all") return true;
+    if(currentFilter === "danger") return p.status === "danger";
+    if(currentFilter === "warning") return p.status === "warning";
+    if(currentFilter === "excused") return p.status === "excused";
+    if(currentFilter === "zero"){
+      const w = war.find(x => x.tag === p.tag);
+      return w && w.decksUsed === 0;
+    }
+  }).forEach(p=>{
+    div.innerHTML += `
+      <div class="card">
+        <div class="left">
+          <div class="dot ${p.status}"></div>
+          <div>
+            <b>${p.name}</b>
+            <div class="small">${p.inactiveDays} Tage • ${p.role}</div>
+          </div>
+        </div>
+        <button onclick="excuse('${p.tag}')">☑️</button>
+      </div>
+    `;
+  });
+}
+
+/* ---------------- EXCUSE ---------------- */
+async function excuse(tag){
+  const days = prompt("Wie viele Tage entschuldigen?", "3");
+  if(!days) return;
+
+  await fetch(BACKEND + "/excuse", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({ tag, days })
+  });
+
+  loadAll();
+}
+
+/* ---------------- WAR ---------------- */
+function renderWar(){
+  const d = document.getElementById("war");
+  d.innerHTML = war.length ? "" : "<div class='small'>Kein aktiver Clankrieg</div>";
+
+  war.forEach(p=>{
+    d.innerHTML += `
+      <div class="card">
+        <div class="left">
+          <div class="dot ${p.status}"></div>
+          <div>
+            <b>${p.name}</b>
+            <div class="small">${p.decksUsed} Kämpfe • ${p.medals} Medaillen</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+/* ---------------- RIVER ---------------- */
+function renderRiver(){
+  const d = document.getElementById("river");
+  d.innerHTML = river.length ? "" : "<div class='small'>Keine aktive Clanreise</div>";
+
+  river.forEach(p=>{
+    d.innerHTML += `
+      <div class="card">
+        <div class="left">
+          <div class="dot ${p.status}"></div>
+          <div>
+            <b>${p.name}</b>
+            <div class="small">${p.fame} Fame</div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+/* ---------------- LEADERBOARD ---------------- */
+function renderLeaderboard(){
+  const d = document.getElementById("leaderboard");
+  d.innerHTML = "";
+
+  leaderboard.forEach((p,i)=>{
+    d.innerHTML += `
+      <div class="card">
+        <b>#${i+1} ${p.name}</b>
+        <div class="small">Score: ${p.score}</div>
+      </div>
+    `;
+  });
+}
+
+loadAll();
+</script>
+
+</body>
+</html>
