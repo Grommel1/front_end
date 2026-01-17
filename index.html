@@ -33,6 +33,7 @@ header {
   border-radius: 8px;
   background: #1e293b;
   color: white;
+  cursor: pointer;
 }
 
 .tabs button.active,
@@ -110,8 +111,8 @@ button.action {
 <div id="leaderboard" class="section" style="display:none"></div>
 
 <script>
-/* ✅ EINZIGE ÄNDERUNG HIER */
-const BACKEND = "http://157.90.175.255:10000";
+/* 🔴 DEIN BACKEND */
+const BACKEND = "https://back-end-qyst.onrender.com";
 
 let players = [];
 let war = [];
@@ -119,7 +120,7 @@ let river = [];
 let leaderboard = [];
 let currentFilter = "all";
 
-/* ---------- HELPER ---------- */
+/* ---------- API ---------- */
 async function api(path) {
   try {
     const r = await fetch(BACKEND + path);
@@ -130,7 +131,7 @@ async function api(path) {
   }
 }
 
-/* ---------- LOAD ---------- */
+/* ---------- LOAD (FIXED REIHENFOLGE) ---------- */
 async function loadAll() {
   players = await api("/players");
   war = await api("/war");
@@ -169,7 +170,7 @@ function drawPlayers() {
   const el = document.getElementById("players");
   el.innerHTML = "";
 
-  players.filter(p => {
+  const filtered = players.filter(p => {
     if (currentFilter === "all") return true;
     if (currentFilter === "danger") return p.status === "danger";
     if (currentFilter === "excused") return p.status === "excused";
@@ -177,7 +178,10 @@ function drawPlayers() {
       const w = war.find(x => x.tag === p.tag);
       return w && w.decksUsed === 0;
     }
-  }).forEach(p => {
+    return true;
+  });
+
+  filtered.forEach(p => {
     el.innerHTML += `
       <div class="card">
         <div class="left">
@@ -192,7 +196,7 @@ function drawPlayers() {
     `;
   });
 
-  if (!el.innerHTML) {
+  if (!filtered.length) {
     el.innerHTML = "<div class='small'>Keine Spieler gefunden</div>";
   }
 }
@@ -214,7 +218,12 @@ async function excuse(tag) {
 /* ---------- WAR ---------- */
 function drawWar() {
   const el = document.getElementById("war");
-  el.innerHTML = war.length ? "" : "<div class='small'>Kein aktiver Clankrieg</div>";
+  el.innerHTML = "";
+
+  if (!war.length) {
+    el.innerHTML = "<div class='small'>Kein aktiver Clankrieg</div>";
+    return;
+  }
 
   war.forEach(p => {
     el.innerHTML += `
@@ -234,7 +243,12 @@ function drawWar() {
 /* ---------- RIVER ---------- */
 function drawRiver() {
   const el = document.getElementById("river");
-  el.innerHTML = river.length ? "" : "<div class='small'>Keine Clanreise aktiv</div>";
+  el.innerHTML = "";
+
+  if (!river.length) {
+    el.innerHTML = "<div class='small'>Keine Clanreise aktiv</div>";
+    return;
+  }
 
   river.forEach(p => {
     el.innerHTML += `
@@ -255,6 +269,11 @@ function drawRiver() {
 function drawLeaderboard() {
   const el = document.getElementById("leaderboard");
   el.innerHTML = "";
+
+  if (!leaderboard.length) {
+    el.innerHTML = "<div class='small'>Kein Ranking verfügbar</div>";
+    return;
+  }
 
   leaderboard.forEach((p, i) => {
     el.innerHTML += `
